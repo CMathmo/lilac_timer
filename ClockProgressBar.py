@@ -305,12 +305,14 @@ class Window(QWidget):
 
         self._timer.start(100)
 
-    def updateValue(self):
-        for w in self._widgets:
-            w.value = self._value
-        self._value += 1
-        if self._value > 100:
-            self._value = 0
+
+    def updateValue(self, flag = False):
+        if flag:
+            self._timer.stop()
+        else:
+            for w in self._widgets:
+                w.value = self._value
+            self._value += 1
 
 
 if __name__ == '__main__':
