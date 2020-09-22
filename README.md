@@ -38,4 +38,3 @@ python tools.py
 ```bash
 python release.py
 ```
-
