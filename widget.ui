@@ -23,13 +23,6 @@
    <item>
     <layout class="QVBoxLayout" name="global_vlayout">
      <item>
-      <widget class="QPushButton" name="pushButton">
-       <property name="text">
-        <string>PushButton</string>
-       </property>
-      </widget>
-     </item>
-     <item>
       <widget class="QLabel" name="trace_name">
        <property name="maximumSize">
         <size>
@@ -101,7 +94,7 @@
          <item>
           <layout class="QHBoxLayout" name="pros_hlayout">
            <item>
-            <spacer name="verticalSpacer">
+            <spacer name="verticalSpacer_2">
              <property name="orientation">
               <enum>Qt::Vertical</enum>
              </property>
@@ -155,7 +148,7 @@
          <item>
           <layout class="QHBoxLayout" name="cons_hlayout">
            <item>
-            <spacer name="verticalSpacer_2">
+            <spacer name="verticalSpacer">
              <property name="orientation">
               <enum>Qt::Vertical</enum>
              </property>
@@ -170,6 +163,45 @@
           </layout>
          </item>
         </layout>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="menu_hlayout">
+       <item>
+        <widget class="QPushButton" name="restart_button">
+         <property name="text">
+          <string>重来</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="last_button">
+         <property name="text">
+          <string>上一个</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="stop_start_button">
+         <property name="text">
+          <string>暂停/开始</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="next_button">
+         <property name="text">
+          <string>下一个</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="close_button">
+         <property name="text">
+          <string>退出</string>
+         </property>
+        </widget>
        </item>
       </layout>
      </item>
