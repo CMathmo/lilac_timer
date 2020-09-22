@@ -4,7 +4,7 @@ import sys
 from functools import partial
 from PyQt5.QtGui import QPalette, QPixmap, QBrush, QFont, QColor, QPainter
 from src.ui.widget import Ui_Form
-from src.ClockProgressBar import PercentProgressBar as cpb
+from src.ui.ClockProgressBar import PercentProgressBar as cpb
 from enum import Enum, auto
 from PyQt5.QtCore import Qt, QRectF, QTimer
 from PyQt5 import QtCore, QtWidgets, QtGui
