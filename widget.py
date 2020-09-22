@@ -14,12 +14,15 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 class Ui_Form(object):
     def setupUi(self, Form):
         Form.setObjectName("Form")
-        Form.resize(1920, 1080)
+        Form.resize(192, 108)
         Form.setMinimumSize(QtCore.QSize(0, 0))
         self.vlayout = QtWidgets.QVBoxLayout(Form)
         self.vlayout.setObjectName("vlayout")
         self.global_vlayout = QtWidgets.QVBoxLayout()
         self.global_vlayout.setObjectName("global_vlayout")
+        self.pushButton = QtWidgets.QPushButton(Form)
+        self.pushButton.setObjectName("pushButton")
+        self.global_vlayout.addWidget(self.pushButton)
         self.trace_name = QtWidgets.QLabel(Form)
         self.trace_name.setMaximumSize(QtCore.QSize(16777215, 60))
         self.trace_name.setObjectName("trace_name")
@@ -81,6 +84,7 @@ class Ui_Form(object):
     def retranslateUi(self, Form):
         _translate = QtCore.QCoreApplication.translate
         Form.setWindowTitle(_translate("Form", "Form"))
+        self.pushButton.setText(_translate("Form", "PushButton"))
         self.trace_name.setText(_translate("Form", "TextLabel"))
         self.debate_title.setText(_translate("Form", "TextLabel"))
         self.turn_name.setText(_translate("Form", "TextLabel"))

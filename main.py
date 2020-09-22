@@ -6,9 +6,10 @@ import numpy as np
 from PyQt5.QtGui import QPalette, QPixmap, QBrush, QFont, QColor, QPainter
 from widget import Ui_Form
 from ClockProgressBar import PercentProgressBar as cpb
-
+from enum import Enum
+import time
 import PyQt5
-from PyQt5.QtCore import Qt, QRectF
+from PyQt5.QtCore import Qt, QRectF, pyqtSignal
 from PyQt5 import QtCore, QtWidgets, QtGui
 import timer
 from PyQt5.QtWidgets import QApplication, QMainWindow, QListWidget, QWidget, QHBoxLayout, QLabel, QLineEdit, \
@@ -70,6 +71,8 @@ class timer_clock(cpb):
         self.MaxValue = maxvalue
 
 class timer_widget(QWidget, Ui_Form):
+
+
     def __init__(self, value_map, time_table):
         super(timer_widget, self).__init__()
         self.setupUi(self)
@@ -80,7 +83,8 @@ class timer_widget(QWidget, Ui_Form):
         self.init_clock()
         self.set_background("background0.jpg")
         self.SetSingaltoSlots()
-        self.num = 0
+        self.index = 0
+        self.time_item_num = len(self.time_table)
 
     def init_label(self):
         self.trace_name.setText(self.value_map["trace_name"])
@@ -117,76 +121,126 @@ class timer_widget(QWidget, Ui_Form):
         self.mid_vlayout.addWidget(self.mid_time)
         self.mid_time.setVisible(False)
 
-
     def mousePressEvent(self, event):
         if event.buttons() == QtCore.Qt.LeftButton:  # 左键按下
             self.cut()
 
+
     def cut(self):
-        if self.num == len(self.time_table):
-            self.close()
-        self.setwidget(self.time_table[self.num]["type"])
-        self.num += 1
+        if self.index == self.time_item_num:
+            self.Signal_Close(True)
+        print(self.time_table[self.index])
+        self.setwidget(self.time_table[self.index]["item_type"])
+        self.index += 1
 
+    class Background_type(Enum):
+        MID = 0
+        PROS = 1
+        CONS = 2
 
+    background = Background_type.MID
+
+    def cut_standpoint(self):
+        if self.background == self.Background_type.PROS:
+            self.background = self.Background_type.CONS
+        else:
+            self.background = self.Background_type.PROS
 
     def setwidget(self, widget_type):
         if widget_type == 0:
-            self.turn_name.setText(self.time_table[self.num]["name"])
-            if self.time_table[self.num]["standpoint"] == "正方":
+            self.turn_name.setText(self.time_table[self.index]["name"])
+            if self.time_table[self.index]["standpoint"] == "正方":
                 self.mid_time.setVisible(False)
                 self.cons_time.setVisible(False)
                 self.pros_time.setVisible(True)
-                self.pros_time.setMaxValue(change_time(self.time_table[self.num]["time"]))
+                self.pros_time.setMaxValue(change_time(self.time_table[self.index]["time"]))
+                self.pros_time.setValue(change_time(self.time_table[self.index]["time"]))
+                self.set_background("background_pros.jpg")
+                self.background = self.Background_type.PROS
             else:
                 self.mid_time.setVisible(False)
                 self.pros_time.setVisible(False)
                 self.cons_time.setVisible(True)
-                self.cons_time.setMaxValue(change_time(self.time_table[self.num]["time"]))
+                self.cons_time.setMaxValue(change_time(self.time_table[self.index]["time"]))
+                self.cons_time.setValue(change_time(self.time_table[self.index]["time"]))
+                self.set_background("background_cons.jpg")
+                self.background = self.Background_type.CONS
         elif widget_type == 1:
-            self.turn_name.setText(self.time_table[self.num]["name"])
-            if self.time_table[self.num]["standpoint"] == "正方":
+            self.turn_name.setText(self.time_table[self.index]["name"])
+            if self.time_table[self.index]["standpoint"] == "正方":
                 self.mid_time.setVisible(False)
                 self.pros_time.setVisible(True)
-                self.pros_time.setMaxValue(change_time(self.time_table[self.num]["time1"]))
+                self.pros_time.setMaxValue(change_time(self.time_table[self.index]["time1"]))
+                self.pros_time.setValue(change_time(self.time_table[self.index]["time1"]))
                 self.cons_time.setVisible(True)
-                self.cons_time.setMaxValue(change_time(self.time_table[self.num]["time2"]))
+                self.cons_time.setMaxValue(change_time(self.time_table[self.index]["time2"]))
+                self.cons_time.setValue(change_time(self.time_table[self.index]["time2"]))
+                self.set_background("background_pros.jpg")
+                self.background = self.Background_type.PROS
             else:
                 self.mid_time.setVisible(False)
                 self.cons_time.setVisible(True)
-                self.cons_time.setMaxValue(change_time(self.time_table[self.num]["time1"]))
+                self.cons_time.setMaxValue(change_time(self.time_table[self.index]["time1"]))
+                self.cons_time.setValue(change_time(self.time_table[self.index]["time1"]))
                 self.pros_time.setVisible(True)
-                self.pros_time.setMaxValue(change_time(self.time_table[self.num]["time2"]))
+                self.pros_time.setMaxValue(change_time(self.time_table[self.index]["time2"]))
+                self.pros_time.setValue(change_time(self.time_table[self.index]["time2"]))
+                self.set_background("background_cons.jpg")
+                self.background = self.Background_type.CONS
         elif widget_type == 2:
-            self.turn_name.setText(self.time_table[self.num]["name"])
+            self.turn_name.setText(self.time_table[self.index]["name"])
+            if self.time_table[self.index]["standpoint"] == "正方":
+                self.set_background("background_pros.jpg")
+                self.background = self.Background_type.PROS
+            else:
+                self.set_background("background_cons.jpg")
+                self.background = self.Background_type.CONS
             self.mid_time.setVisible(True)
-            self.mid_time.setMaxValue(change_time(self.time_table[self.num]["time"]))
+            self.mid_time.setMaxValue(change_time(self.time_table[self.index]["time"]))
+            self.mid_time.setValue(change_time(self.time_table[self.index]["time"]))
             self.pros_time.setVisible(False)
             self.cons_time.setVisible(False)
         elif widget_type == 3:
-            self.turn_name.setText(self.time_table[self.num]["name"])
+            self.turn_name.setText(self.time_table[self.index]["name"])
+            if self.time_table[self.index]["standpoint"] == "正方":
+                self.set_background("background_pros.jpg")
+                self.background = self.Background_type.PROS
+            else:
+                self.set_background("background_cons.jpg")
+                self.background = self.Background_type.CONS
             self.mid_time.setVisible(False)
             self.pros_time.setVisible(True)
-            self.pros_time.setMaxValue(change_time(self.time_table[self.num]["time"]))
+            self.pros_time.setMaxValue(change_time(self.time_table[self.index]["time"]))
+            self.pros_time.setValue(change_time(self.time_table[self.index]["time"]))
             self.cons_time.setVisible(True)
-            self.cons_time.setMaxValue(change_time(self.time_table[self.num]["time"]))
+            self.cons_time.setMaxValue(change_time(self.time_table[self.index]["time"]))
+            self.cons_time.setValue(change_time(self.time_table[self.index]["time"]))
         elif widget_type == 4:
-            self.turn_name.setText(self.time_table[self.num]["name"])
+            self.turn_name.setText(self.time_table[self.index]["name"])
+            if self.time_table[self.index]["standpoint"] == "正方":
+                self.set_background("background_pros.jpg")
+                self.background = self.Background_type.PROS
+            else:
+                self.set_background("background_cons.jpg")
+                self.background = self.Background_type.CONS
             self.mid_time.setVisible(False)
             self.pros_time.setVisible(True)
-            self.pros_time.setMaxValue(change_time(self.time_table[self.num]["time"]))
+            self.pros_time.setMaxValue(change_time(self.time_table[self.index]["time"]))
+            self.pros_time.setValue(change_time(self.time_table[self.index]["time"]))
             self.cons_time.setVisible(True)
-            self.cons_time.setMaxValue(change_time(self.time_table[self.num]["time"]))
+            self.cons_time.setMaxValue(change_time(self.time_table[self.index]["time"]))
+            self.cons_time.setValue(change_time(self.time_table[self.index]["time"]))
         else:
-            self.turn_name.setText(self.time_table[self.num]["name"])
+            self.turn_name.setText(self.time_table[self.index]["name"])
             self.mid_time.setVisible(True)
-            self.mid_time.setMaxValue(change_time(self.time_table[self.num]["time"]))
+            self.mid_time.setMaxValue(change_time(self.time_table[self.index]["time"]))
+            self.mid_time.setValue(change_time(self.time_table[self.index]["time"]))
             self.pros_time.setVisible(False)
             self.cons_time.setVisible(False)
 
 
     def SetSingaltoSlots(self):
-        pass
+        self.pushButton.clicked.connect(self.close)
 
     def set_background(self, img):
         pal = self.palette()
@@ -218,12 +272,17 @@ class timer_designer_mainwindow(QMainWindow, timer.Ui_MainWindow):
         self.input_button.clicked.connect(self.import_data)
         self.start_button.clicked.connect(self.Start_time)
 
+    def Close_time(self, tag):
+        if tag:
+            self.tw.close()
+
     def Start_time(self):
         self.get_allValue()
         self.tw = timer_widget(self.value_map, self.timetable)
         self.tw.setWindowModality(Qt.WindowModal)
         self.tw.setWindowTitle("qu")
         self.tw.setWindowFlag(Qt.Window)
+        self.tw.Signal_Close.connect(self.Close_time)
         #self.tw.showFullScreen()
         self.tw.show()
 

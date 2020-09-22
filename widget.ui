@@ -23,6 +23,13 @@
    <item>
     <layout class="QVBoxLayout" name="global_vlayout">
      <item>
+      <widget class="QPushButton" name="pushButton">
+       <property name="text">
+        <string>PushButton</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QLabel" name="trace_name">
        <property name="maximumSize">
         <size>
