@@ -1,15 +1,340 @@
 import os
+import re
 import sys
 from functools import partial
 import numpy as np
-
+from PyQt5.QtGui import QPalette, QPixmap, QBrush, QFont, QColor, QPainter
+from widget import Ui_Form
+from ClockProgressBar import PercentProgressBar as cpb
+from enum import Enum, auto
+import time
 import PyQt5
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QRectF, pyqtSignal, QTimer
 from PyQt5 import QtCore, QtWidgets, QtGui
 import timer
 from PyQt5.QtWidgets import QApplication, QMainWindow, QListWidget, QWidget, QHBoxLayout, QLabel, QLineEdit, \
     QListWidgetItem, QComboBox, QPushButton, QFileDialog
 
+
+def change_time(time_str):
+    sobj = re.search(r"(.*)[:|：](.*)", time_str)
+    return int(sobj.group(1)) * 60 + int(sobj.group(2))
+
+class timer_clock(cpb):
+    TextColor = QColor(255, 255, 255)  # 文字颜色
+    BorderColor = QColor(248, 248, 255)  # 边框圆圈颜色
+    BackgroundColor = QColor(70, 70, 70)  # 背景颜色
+
+    def __init__(self, *args, value=0, minValue=0, maxValue=100,
+                 borderWidth=8, clockwise=True, showPercent=True,
+                 showFreeArea=False, showSmallCircle=False,
+                 textColor=QColor(255, 255, 255),
+                 borderColor=QColor(248, 248, 255),
+                 backgroundColor=QColor(70, 70, 70), **kwargs):
+        super(timer_clock, self).__init__(*args, **kwargs)
+        self.Value = value
+
+        self.TextColor = textColor
+        self.BorderColor = borderColor
+        self.BackgroundColor = backgroundColor
+        self.setMaximumWidth(500)
+
+    def _drawArc(self, painter: QPainter, radius: int):
+        # 绘制圆弧
+        painter.save()
+        painter.setBrush(Qt.NoBrush)
+        # 修改画笔
+        pen = painter.pen()
+        pen.setWidthF(self.BorderWidth)
+        pen.setCapStyle(Qt.RoundCap)
+
+        arcLength = 360.0 / (self.MaxValue - self.MinValue) * self.Value
+        rect = QRectF(-radius, -radius, radius * 2, radius * 2)
+
+        if not self.Clockwise:
+            # 逆时针
+            arcLength = -arcLength
+
+        # 绘制剩余进度圆弧
+        acolor = self.BorderColor.toRgb()
+        acolor.setAlphaF(0.2)
+        pen.setColor(acolor)
+        painter.setPen(pen)
+        #painter.drawArc(rect, (0 - arcLength) * 16, -(360 - arcLength) * 16)
+        painter.drawArc(rect, (90 - arcLength) * 16, -(360 - arcLength) * 16)
+
+        # 绘制当前进度圆弧
+        pen.setColor(self.BorderColor)
+        painter.setPen(pen)
+        #painter.drawArc(rect, 0, -arcLength * 16)
+        painter.drawArc(rect, 90 * 16, -arcLength * 16)
+
+        painter.restore()
+
+    def _drawText(self, painter: QPainter, radius: int):
+        # 绘制文字
+        painter.save()
+        painter.setPen(self.TextColor)
+        painter.setFont(QFont('Arial', 16))
+        strValue = '{:0=2}:{:0=2}'.format(int(self.Value / 60), int(self.value % 60))
+        painter.drawText(QRectF(-radius, -radius, radius * 2,
+                                radius * 2), Qt.AlignCenter, strValue)
+        painter.restore()
+
+    def setMaxValue(self, maxvalue):
+        self.MaxValue = maxvalue
+
+    def getValue(self):
+        return self.Value
+
+class timer_widget(QWidget, Ui_Form):
+
+    def __init__(self, value_map, time_table):
+        super(timer_widget, self).__init__()
+        self.setupUi(self)
+        QtCore.QMetaObject.connectSlotsByName(self)
+        self.value_map = value_map
+        self.time_table = time_table
+        self.init_label()
+        self.init_clock()
+        self.set_background("background0.jpg")
+        self.SetSingaltoSlots()
+        self.index = -1
+        self.time_item_num = len(self.time_table)
+        self.timer = QTimer(self, timeout=self.updateValue)
+        self.standpoint = self.Standpoint.MID
+        self.status = self.Status.NEXT
+        self.cut_tag = False
+        self.timer.start(1000)
+
+    class Status(Enum):
+        NEXT = auto()
+        READY = auto()
+        TIMING = auto()
+        END = auto()
+
+    def updateValue(self):
+        if self.status == self.Status.TIMING:
+            value = self.time_clock.getValue()
+            if value > 0:
+                self.time_clock.setValue(value - 1)
+            elif self.cut_tag:
+                self.cut_standpoint()
+                self.cut_tag = False
+            else:
+                self.status = self.Status.NEXT
+
+    def init_label(self):
+        self.trace_name.setText(self.value_map["trace_name"])
+        self.trace_name.setAlignment(Qt.AlignCenter)
+        self.trace_name.setFont(QFont("微软雅黑",24,QFont.Bold))
+        self.debate_title.setText(self.value_map["debate"])
+        self.debate_title.setAlignment(Qt.AlignCenter)
+        self.debate_title.setFont(QFont("微软雅黑",36,QFont.Bold))
+        self.pros_debate.setText(self.value_map["pros_debate"])
+        self.pros_debate.setAlignment(Qt.AlignCenter)
+        self.pros_debate.setFont(QFont("微软雅黑",12))
+        self.pros_name.setText(self.value_map["pros_name"])
+        self.pros_name.setAlignment(Qt.AlignCenter)
+        self.pros_name.setFont(QFont("微软雅黑",10))
+        self.cons_debate.setText(self.value_map["cons_debate"])
+        self.cons_debate.setAlignment(Qt.AlignCenter)
+        self.cons_debate.setFont(QFont("微软雅黑",12))
+        self.cons_name.setText(self.value_map["cons_name"])
+        self.cons_name.setAlignment(Qt.AlignCenter)
+        self.cons_name.setFont(QFont("微软雅黑",10))
+        self.turn_name.setVisible(False)
+        self.turn_name.setAlignment(Qt.AlignCenter)
+        self.turn_name.setFont(QFont("微软雅黑",10))
+
+    def init_clock(self):
+        self.pros_time = timer_clock()
+        self.pros_time.setObjectName("pros_time")
+        self.pros_time.setVisible(False)
+        self.pros_hlayout.addWidget(self.pros_time)
+        self.cons_time = timer_clock()
+        self.cons_time.setObjectName("cons_time")
+        self.cons_time.setVisible(False)
+        self.cons_hlayout.addWidget(self.cons_time)
+        self.mid_time = timer_clock()
+        self.mid_time.setObjectName("mid_time")
+        self.mid_vlayout.addWidget(self.mid_time)
+        self.mid_time.setVisible(False)
+
+    def mousePressEvent(self, event):
+        if event.buttons() == QtCore.Qt.LeftButton:  # 左键按下
+            self.cut()
+
+    def cut_by_button(self, next_tag):
+        if next_tag:
+            if self.index < self.time_item_num - 1:
+                self.index += 1
+                self.status = self.Status.READY
+                self.setwidget(self.time_table[self.index]["item_type"])
+        else:
+            if self.index > 0:
+                self.index -= 1
+                self.status = self.Status.READY
+                self.setwidget(self.time_table[self.index]["item_type"])
+
+    def stop_and_start(self):
+        if self.timer.isActive():
+            self.timer.stop()
+        else:
+            self.timer.start()
+
+    def restart(self):
+        self.status = self.Status.READY
+        self.setwidget(self.time_table[self.index]["item_type"])
+
+    def cut(self):
+        #if self.index != self.time_item_num:
+        if self.index == self.time_item_num - 1 and self.status == self.Status.NEXT:
+            self.status = self.Status.END
+        elif self.status == self.Status.NEXT:
+            self.index += 1
+            self.status = self.Status.READY
+            self.setwidget(self.time_table[self.index]["item_type"])
+        elif self.status == self.Status.READY:
+            self.status = self.Status.TIMING
+        elif self.status == self.Status.TIMING and self.cut_tag:
+            self.cut_standpoint()
+
+    class Standpoint(Enum):
+        MID = auto()
+        PROS = auto()
+        CONS = auto()
+
+    def cut_standpoint(self):
+        if self.standpoint == self.Standpoint.PROS:
+            self.standpoint = self.Standpoint.CONS
+            self.set_background("background_cons.jpg")
+            self.time_clock = self.cons_time
+
+        elif self.standpoint == self.Standpoint.CONS:
+            self.standpoint = self.Standpoint.PROS
+            self.set_background("background_pros.jpg")
+            self.time_clock = self.pros_time
+
+    def setwidget(self, widget_type):
+        self.turn_name.setVisible(True)
+        if widget_type == 0:
+            self.turn_name.setText(self.time_table[self.index]["name"])
+            if self.time_table[self.index]["standpoint"] == "正方":
+                self.mid_time.setVisible(False)
+                self.cons_time.setVisible(False)
+                self.pros_time.setVisible(True)
+                self.time_clock = self.pros_time
+                self.pros_time.setMaxValue(change_time(self.time_table[self.index]["time"]))
+                self.pros_time.setValue(change_time(self.time_table[self.index]["time"]))
+                self.set_background("background_pros.jpg")
+                self.standpoint = self.Standpoint.PROS
+            else:
+                self.mid_time.setVisible(False)
+                self.pros_time.setVisible(False)
+                self.cons_time.setVisible(True)
+                self.time_clock = self.cons_time
+                self.cons_time.setMaxValue(change_time(self.time_table[self.index]["time"]))
+                self.cons_time.setValue(change_time(self.time_table[self.index]["time"]))
+                self.set_background("background_cons.jpg")
+                self.standpoint = self.Standpoint.CONS
+        elif widget_type == 1:
+            self.turn_name.setText(self.time_table[self.index]["name"])
+            self.cut_tag = True
+            if self.time_table[self.index]["standpoint"] == "正方":
+                self.mid_time.setVisible(False)
+                self.pros_time.setVisible(True)
+                self.time_clock = self.pros_time
+                self.pros_time.setMaxValue(change_time(self.time_table[self.index]["time1"]))
+                self.pros_time.setValue(change_time(self.time_table[self.index]["time1"]))
+                self.cons_time.setVisible(True)
+                self.cons_time.setMaxValue(change_time(self.time_table[self.index]["time2"]))
+                self.cons_time.setValue(change_time(self.time_table[self.index]["time2"]))
+                self.set_background("background_pros.jpg")
+                self.standpoint = self.Standpoint.PROS
+            else:
+                self.mid_time.setVisible(False)
+                self.cons_time.setVisible(True)
+                self.time_clock = self.cons_time
+                self.cons_time.setMaxValue(change_time(self.time_table[self.index]["time1"]))
+                self.cons_time.setValue(change_time(self.time_table[self.index]["time1"]))
+                self.pros_time.setVisible(True)
+                self.pros_time.setMaxValue(change_time(self.time_table[self.index]["time2"]))
+                self.pros_time.setValue(change_time(self.time_table[self.index]["time2"]))
+                self.set_background("background_cons.jpg")
+                self.standpoint = self.Standpoint.CONS
+        elif widget_type == 2:
+            self.turn_name.setText(self.time_table[self.index]["name"])
+            if self.time_table[self.index]["standpoint"] == "正方":
+                self.set_background("background_pros.jpg")
+                self.standpoint = self.Standpoint.PROS
+            else:
+                self.set_background("background_cons.jpg")
+                self.standpoint = self.Standpoint.CONS
+            self.mid_time.setVisible(True)
+            self.time_clock = self.mid_time
+            self.mid_time.setMaxValue(change_time(self.time_table[self.index]["time"]))
+            self.mid_time.setValue(change_time(self.time_table[self.index]["time"]))
+            self.pros_time.setVisible(False)
+            self.cons_time.setVisible(False)
+        elif widget_type == 3:
+            self.turn_name.setText(self.time_table[self.index]["name"])
+            self.cut_tag = True
+            if self.time_table[self.index]["standpoint"] == "正方":
+                self.set_background("background_pros.jpg")
+                self.standpoint = self.Standpoint.PROS
+            else:
+                self.set_background("background_cons.jpg")
+                self.standpoint = self.Standpoint.CONS
+            self.mid_time.setVisible(False)
+            self.pros_time.setVisible(True)
+            self.time_clock = self.pros_time
+            self.pros_time.setMaxValue(change_time(self.time_table[self.index]["time"]))
+            self.pros_time.setValue(change_time(self.time_table[self.index]["time"]))
+            self.cons_time.setVisible(True)
+            self.cons_time.setMaxValue(change_time(self.time_table[self.index]["time"]))
+            self.cons_time.setValue(change_time(self.time_table[self.index]["time"]))
+        elif widget_type == 4:
+            self.turn_name.setText(self.time_table[self.index]["name"])
+            self.cut_tag = True
+            if self.time_table[self.index]["standpoint"] == "正方":
+                self.set_background("background_pros.jpg")
+                self.standpoint = self.Standpoint.PROS
+            else:
+                self.set_background("background_cons.jpg")
+                self.standpoint = self.Standpoint.CONS
+            self.mid_time.setVisible(False)
+            self.pros_time.setVisible(True)
+            self.time_clock = self.pros_time
+            self.pros_time.setMaxValue(change_time(self.time_table[self.index]["time"]))
+            self.pros_time.setValue(change_time(self.time_table[self.index]["time"]))
+            self.cons_time.setVisible(True)
+            self.cons_time.setMaxValue(change_time(self.time_table[self.index]["time"]))
+            self.cons_time.setValue(change_time(self.time_table[self.index]["time"]))
+        else:
+            self.turn_name.setText(self.time_table[self.index]["name"])
+            self.mid_time.setVisible(True)
+            self.time_clock = self.mid_time
+            self.mid_time.setMaxValue(change_time(self.time_table[self.index]["time"]))
+            self.mid_time.setValue(change_time(self.time_table[self.index]["time"]))
+            self.pros_time.setVisible(False)
+            self.cons_time.setVisible(False)
+            self.standpoint = self.Standpoint.MID
+
+    def SetSingaltoSlots(self):
+        self.close_button.clicked.connect(self.close)
+        self.restart_button.clicked.connect(self.restart)
+        self.last_button.clicked.connect(partial(self.cut_by_button,False))
+        self.next_button.clicked.connect(partial(self.cut_by_button,True))
+        self.stop_start_button.clicked.connect(self.stop_and_start)
+
+    def set_background(self, img):
+        pal = self.palette()
+        pal.setBrush(QPalette.Background,QBrush(QPixmap("Img/" + img).scaled(
+                self.size(),
+                Qt.IgnoreAspectRatio,
+                Qt.SmoothTransformation)))
+        self.setPalette(pal)
 
 class timer_designer_mainwindow(QMainWindow, timer.Ui_MainWindow):
     def __init__(self):
@@ -20,8 +345,7 @@ class timer_designer_mainwindow(QMainWindow, timer.Ui_MainWindow):
         self.player_num = 4
         self.players_list_refresh(self.pros_players_list)
         self.players_list_refresh(self.cons_players_list)
-        zz_jpg = QtGui.QPixmap("D:/File/Picture/zz.jpg")
-        self.logo.setPixmap(zz_jpg)
+        self.logo.setPixmap(QtGui.QPixmap(os.getcwd() + "/Img/" + str(self.player_num)).scaled(250,250,Qt.KeepAspectRatio))
         self.logo.setAlignment(Qt.AlignCenter)
 
     def SetSingaltoSlots(self):
@@ -30,12 +354,26 @@ class timer_designer_mainwindow(QMainWindow, timer.Ui_MainWindow):
         self.delete_button.clicked.connect(self.list_delete)
         self.output_button.clicked.connect(self.export_data)
         self.input_button.clicked.connect(self.import_data)
+        self.start_button.clicked.connect(self.Start_time)
+
+    def Close_time(self):
+        self.tw.close()
+
+    def Start_time(self):
+        self.get_allValue()
+        self.tw = timer_widget(self.value_map, self.timetable)
+        self.tw.setWindowModality(Qt.WindowModal)
+        self.tw.setWindowTitle("计时")
+        self.tw.setWindowFlag(Qt.Window)
+        self.tw.showFullScreen()
+        self.tw.show()
 
     def show_number(self):
         self.player_num = self.number_slider.value()
         self.number_label.setText("每队人数:" + str(self.player_num))
         self.players_list_refresh(self.pros_players_list)
         self.players_list_refresh(self.cons_players_list)
+        self.logo.setPixmap(QtGui.QPixmap(os.getcwd() + "/Img/" + str(self.player_num)).scaled(250,250,Qt.KeepAspectRatio))
 
     def players_list_refresh(self, list):
         length = list.count()
@@ -390,7 +728,7 @@ class timer_designer_mainwindow(QMainWindow, timer.Ui_MainWindow):
         self.get_allValue()
         fileName, filetype = QFileDialog.getSaveFileName(self,
                                                          "文件保存",
-                                                         os.getcwd(),  # 起始路径
+                                                         os.getcwd() + "/Ltim",  # 起始路径
                                                          "Ltim Files (*.ltim)")
         if fileName != "":
             with open(fileName, 'w') as f:
@@ -427,7 +765,7 @@ class timer_designer_mainwindow(QMainWindow, timer.Ui_MainWindow):
     def import_data(self):
         fileName, filetype = QFileDialog.getOpenFileName(self,
                                                          "选取文件",
-                                                         os.getcwd(),  # 起始路径
+                                                         os.getcwd() + "/Ltim",  # 起始路径
                                                          "Ltim Files (*.ltim)")  # 设置文件扩展名过滤,用双分号间隔
         if fileName != "":
             with open(fileName) as f:
@@ -489,7 +827,6 @@ class timer_designer_mainwindow(QMainWindow, timer.Ui_MainWindow):
                     item_widget.findChild(QLineEdit, "name_edit").setText(item_list[1])
                     if item_list[2] != "正方":
                         item_widget.findChild(QPushButton, "standpoint_button").setText("反方")
-                        item_widget.findChild(QPushButton, "ob_standpoint_button").setText("正方")
                     item_widget.findChild(QLineEdit, "time_edit").setText(item_list[3])
                 elif item_type == 5:
                     item_widget = self.timetable_list.itemWidget(self.timetable_list.item(line_index - 1)).findChild(
@@ -498,20 +835,21 @@ class timer_designer_mainwindow(QMainWindow, timer.Ui_MainWindow):
                     item_widget.findChild(QLineEdit, "time_edit").setText(item_list[2])
 
     def get_allValue(self):
-        self.trace_name = self.trace_name_edit.text()
-        self.debate = self.debate_edit.text()
-        self.pros_debate = self.pros_debate_edit.text()
-        self.pros_name = self.pros_name_edit.text()
-        self.pros_players = []
+        self.value_map = {}
+        self.value_map["trace_name"] = self.trace_name_edit.text()
+        self.value_map["debate"] = self.debate_edit.text()
+        self.value_map["pros_debate"] = self.pros_debate_edit.text()
+        self.value_map["pros_name"] = self.pros_name_edit.text()
+        self.value_map["pros_players"] = []
         for player_index in range(self.pros_players_list.count()):
-            self.pros_players.append(
+            self.value_map["pros_players"].append(
                 self.pros_players_list.itemWidget(self.pros_players_list.item(player_index)).findChild(QLineEdit,
                                                                                                        "player_name_edit").text())
-        self.cons_debate = self.cons_debate_edit.text()
-        self.cons_name = self.cons_name_edit.text()
-        self.cons_players = []
+        self.value_map["cons_debate"] = self.cons_debate_edit.text()
+        self.value_map["cons_name"]= self.cons_name_edit.text()
+        self.value_map["cons_players"] = []
         for player_index in range(self.cons_players_list.count()):
-            self.cons_players.append(
+            self.value_map["cons_players"].append(
                 self.cons_players_list.itemWidget(self.cons_players_list.item(player_index)).findChild(QLineEdit,
                                                                                                        "player_name_edit").text())
         self.timetable = []
