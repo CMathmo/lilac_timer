@@ -236,6 +236,8 @@ class timer_widget(QWidget, Ui_Form):
     def mousePressEvent(self, event):
         if event.buttons() == QtCore.Qt.LeftButton:  # 左键按下
             self.cut()
+        if event.buttons() == QtCore.Qt.RightButton:  # 右键按下
+            self.stop_and_start()
 
     def cut_by_button(self, next_tag):
         if next_tag:
