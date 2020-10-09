@@ -10,9 +10,9 @@ from src.ui.ClockProgressBar import PercentProgressBar as cpb
 from enum import Enum, auto
 from PyQt5.QtCore import Qt, QRectF, QTimer, pyqtSignal
 from PyQt5 import QtCore, QtWidgets, QtGui
-from src.ui import timer
+from src.ui import timer, timer_designer
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout, QLabel, QLineEdit, \
-    QListWidgetItem, QComboBox, QPushButton, QFileDialog
+    QListWidgetItem, QComboBox, QPushButton, QFileDialog, QListWidget
 
 import os, sys
 def getPath(filename):
@@ -48,6 +48,22 @@ def change_time(time_str):
     sobj = re.search(r"(.*)[:|：](.*)", time_str)
     return int(sobj.group(1)) * 60 + int(sobj.group(2))
 
+class timer_list(QListWidget):
+    droped = pyqtSignal()
+
+    def __init__(self):
+        super().__init__()
+        self.setMinimumSize(QtCore.QSize(0, 350))
+        self.setMaximumSize(QtCore.QSize(16777215, 16777215))
+        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+        self.setDragDropMode(QtWidgets.QAbstractItemView.InternalMove)
+        self.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+
+    def dropEvent(self, event: QtGui.QDropEvent):
+        super().dropEvent(event)
+        self.droped.emit()
+
+
 class timer_clock(cpb):
     TextColor = QColor(255, 255, 255)  # 文字颜色
     BorderColor = QColor(248, 248, 255)  # 边框圆圈颜色
@@ -65,7 +81,9 @@ class timer_clock(cpb):
         self.TextColor = textColor
         self.BorderColor = borderColor
         self.BackgroundColor = backgroundColor
-        self.setMaximumWidth(500)
+        self.setMinimumHeight(600)
+        self.setMaximumWidth(600)
+        self.setMouseTracking(True)
 
     def _drawArc(self, painter: QPainter, radius: int):
         # 绘制圆弧
@@ -115,6 +133,9 @@ class timer_clock(cpb):
     def getValue(self):
         return self.Value
 
+    def getMaxValue(self):
+        return self.MaxValue
+
 class timer_widget(QWidget, Ui_Form):
 
     def __init__(self, value_map, time_table):
@@ -128,11 +149,12 @@ class timer_widget(QWidget, Ui_Form):
         self.init_clock()
         self.set_background("background.jpg")
         self.SetSingaltoSlots()
-        self.index = -1
+        self.index = 0
         self.time_item_num = len(self.time_table)
         self.timer = QTimer(self, timeout=self.updateValue)
         self.standpoint = self.Standpoint.MID
         self.status = self.Status.NEXT
+        self.setMouseTracking(True)
         self.cut_tag = False
         self.timer.start(1000)
 
@@ -161,6 +183,21 @@ class timer_widget(QWidget, Ui_Form):
             else:
                 self.status = self.Status.NEXT
 
+    def addValue(self):
+        if self.status == self.Status.TIMING:
+            value = self.time_clock.getValue() + 5
+            maxvalue = self.time_clock.getMaxValue()
+            if value > maxvalue:
+                value = maxvalue
+            self.time_clock.setValue(value)
+
+    def subValue(self):
+        if self.status == self.Status.TIMING:
+            value = self.time_clock.getValue() - 5
+            if value < 0:
+                value = 0
+            self.time_clock.setValue(value)
+
     def init_menu(self):
         self.menu_widget = QWidget()
         self.menu_widget.setObjectName("menu_widget")
@@ -170,31 +207,33 @@ class timer_widget(QWidget, Ui_Form):
 
         self.restart_button = buttonQLabel()
         self.restart_button.setObjectName("restart_button")
-        self.restart_button.setPixmap(QtGui.QPixmap(getPath("Img/restart.png")).scaled(60,60,Qt.KeepAspectRatio))
+        self.restart_button.setPixmap(QtGui.QPixmap(getPath("Img/restart.png")).scaled(100,100,Qt.KeepAspectRatio))
         self.restart_button.setAlignment(Qt.AlignCenter)
         self.menu_hlayout.addWidget(self.restart_button)
         self.last_button = buttonQLabel()
         self.last_button.setObjectName("last_button")
-        self.last_button.setPixmap(QtGui.QPixmap(getPath("Img/last.png")).scaled(60,60,Qt.KeepAspectRatio))
+        self.last_button.setPixmap(QtGui.QPixmap(getPath("Img/last.png")).scaled(100,100,Qt.KeepAspectRatio))
         self.last_button.setAlignment(Qt.AlignCenter)
         self.menu_hlayout.addWidget(self.last_button)
         self.stop_start_button = buttonQLabel()
         self.stop_start_button.setObjectName("stop_start_button")
-        self.stop_start_button.setPixmap(QtGui.QPixmap(getPath("Img/stop_start.png")).scaled(60,60,Qt.KeepAspectRatio))
+        self.stop_start_button.setPixmap(QtGui.QPixmap(getPath("Img/stop.png")).scaled(100,100,Qt.KeepAspectRatio))
         self.stop_start_button.setAlignment(Qt.AlignCenter)
         self.menu_hlayout.addWidget(self.stop_start_button)
         self.global_vlayout.addWidget(self.menu_widget)
         self.next_button = buttonQLabel()
         self.next_button.setObjectName("next_button")
-        self.next_button.setPixmap(QtGui.QPixmap(getPath("Img/next.png")).scaled(60,60,Qt.KeepAspectRatio))
+        self.next_button.setPixmap(QtGui.QPixmap(getPath("Img/next.png")).scaled(100,100,Qt.KeepAspectRatio))
         self.next_button.setAlignment(Qt.AlignCenter)
         self.menu_hlayout.addWidget(self.next_button)
         self.close_button = buttonQLabel()
         self.close_button.setObjectName("close_button")
-        self.close_button.setPixmap(QtGui.QPixmap(getPath("Img/exit.png")).scaled(60,60,Qt.KeepAspectRatio))
+        self.close_button.setPixmap(QtGui.QPixmap(getPath("Img/exit.png")).scaled(100,100,Qt.KeepAspectRatio))
         self.close_button.setAlignment(Qt.AlignCenter)
         self.menu_hlayout.addWidget(self.close_button)
         self.menu_widget.setLayout(self.menu_hlayout)
+        self.menu_widget.setVisible(False)
+        self.menu_widget.setMouseTracking(True)
 
     def init_label(self):
         self.trace_name.setText(self.value_map["trace_name"])
@@ -215,7 +254,7 @@ class timer_widget(QWidget, Ui_Form):
         self.cons_name.setText(self.value_map["cons_name"])
         self.cons_name.setAlignment(Qt.AlignCenter)
         self.cons_name.setFont(QFont("微软雅黑",20))
-        self.turn_name.setVisible(False)
+        self.turn_name.setText("准备阶段")
         self.turn_name.setAlignment(Qt.AlignCenter)
         self.turn_name.setFont(QFont("微软雅黑",24,QFont.Bold))
 
@@ -223,21 +262,42 @@ class timer_widget(QWidget, Ui_Form):
         self.pros_time = timer_clock()
         self.pros_time.setObjectName("pros_time")
         self.pros_time.setVisible(False)
-        self.pros_hlayout.addWidget(self.pros_time)
+        self.pros_clock_vlayout.addWidget(self.pros_time)
+        self.pros_clock_vlayout.addItem(QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding))
         self.cons_time = timer_clock()
         self.cons_time.setObjectName("cons_time")
         self.cons_time.setVisible(False)
-        self.cons_hlayout.addWidget(self.cons_time)
+        self.cons_clock_vlayout.addWidget(self.cons_time)
+        self.cons_clock_vlayout.addItem(QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding))
         self.mid_time = timer_clock()
         self.mid_time.setObjectName("mid_time")
         self.mid_vlayout.addWidget(self.mid_time)
+        spacerItem = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        self.mid_vlayout.addItem(spacerItem)
         self.mid_time.setVisible(False)
 
     def mousePressEvent(self, event):
         if event.buttons() == QtCore.Qt.LeftButton:  # 左键按下
             self.cut()
-        if event.buttons() == QtCore.Qt.RightButton:  # 右键按下
+        if self.value_map["right_stop"] and event.buttons() == QtCore.Qt.RightButton:  # 右键按下
             self.stop_and_start()
+
+    def mouseMoveEvent(self, event: QtGui.QMouseEvent):
+        x = event.x()  # 返回鼠标相对于窗口的x轴坐标
+        y = event.y()  # 返回鼠标相对于窗口的y轴坐标
+        if y >= 900:
+            self.menu_widget.setVisible(True)
+        else:
+            self.menu_widget.setVisible(False)
+
+    def wheelEvent(self, event):
+        if self.value_map["wheel_adjust"]:
+            angle = event.angleDelta() / 8
+            angleY = angle.y()
+            if angleY > 0:
+                self.addValue()
+            if angleY < 0:
+                self.subValue()
 
     def cut_by_button(self, next_tag):
         if next_tag:
@@ -251,11 +311,14 @@ class timer_widget(QWidget, Ui_Form):
                 self.status = self.Status.READY
                 self.setwidget(self.time_table[self.index]["item_type"])
 
+
     def stop_and_start(self):
         if self.timer.isActive():
             self.timer.stop()
+            self.stop_start_button.setPixmap(QtGui.QPixmap(getPath("Img/start.png")).scaled(100, 100, Qt.KeepAspectRatio))
         else:
             self.timer.start()
+            self.stop_start_button.setPixmap(QtGui.QPixmap(getPath("Img/stop.png")).scaled(100, 100, Qt.KeepAspectRatio))
 
     def restart(self):
         self.status = self.Status.READY
@@ -385,13 +448,20 @@ class timer_widget(QWidget, Ui_Form):
             self.cons_time.setVisible(True)
             self.cons_time.setMaxValue(change_time(self.time_table[self.index]["time"]))
             self.cons_time.setValue(change_time(self.time_table[self.index]["time"]))
-        else:
+        elif widget_type == 5:
             self.turn_name.setText(self.time_table[self.index]["name"])
             self.set_background("background.jpg")
             self.mid_time.setVisible(True)
             self.time_clock = self.mid_time
             self.mid_time.setMaxValue(change_time(self.time_table[self.index]["time"]))
             self.mid_time.setValue(change_time(self.time_table[self.index]["time"]))
+            self.pros_time.setVisible(False)
+            self.cons_time.setVisible(False)
+            self.standpoint = self.Standpoint.MID
+        else:
+            self.turn_name.setText(self.time_table[self.index]["name"])
+            self.set_background("background.jpg")
+            self.mid_time.setVisible(False)
             self.pros_time.setVisible(False)
             self.cons_time.setVisible(False)
             self.standpoint = self.Standpoint.MID
@@ -416,10 +486,14 @@ class timer_widget(QWidget, Ui_Form):
                 Qt.SmoothTransformation)))
         self.setPalette(pal)
 
-class timer_designer_mainwindow(QMainWindow, timer.Ui_MainWindow):
+class timer_designer_mainwindow(QMainWindow, timer_designer.Ui_MainWindow):
     def __init__(self):
         super(timer_designer_mainwindow, self).__init__()
         self.setupUi(self)
+        self.timetable_list = timer_list()
+        self.timetable_list.setObjectName("timetable_list")
+        self.timetable_list.setDragDropMode(QtWidgets.QAbstractItemView.InternalMove)
+        self.timetable_vlayout.addWidget(self.timetable_list)
         self.SetSingaltoSlots()
         QtCore.QMetaObject.connectSlotsByName(self)
         self.player_num = 4
@@ -427,6 +501,21 @@ class timer_designer_mainwindow(QMainWindow, timer.Ui_MainWindow):
         self.players_list_refresh(self.cons_players_list)
         self.logo.setPixmap(QtGui.QPixmap(getPath("Img/logo.png")).scaled(250,250,Qt.KeepAspectRatio))
         self.logo.setAlignment(Qt.AlignCenter)
+        self.restart_logo.setPixmap(QtGui.QPixmap(getPath("Img/restart.png")).scaled(40, 40, Qt.KeepAspectRatio))
+        self.restart_logo.setAlignment(Qt.AlignCenter)
+        self.last_logo.setPixmap(QtGui.QPixmap(getPath("Img/last.png")).scaled(40, 40, Qt.KeepAspectRatio))
+        self.last_logo.setAlignment(Qt.AlignCenter)
+        self.stop_start_logo.setPixmap(QtGui.QPixmap(getPath("Img/stop_start.png")).scaled(40, 40, Qt.KeepAspectRatio))
+        self.stop_start_logo.setAlignment(Qt.AlignCenter)
+        self.next_logo.setPixmap(QtGui.QPixmap(getPath("Img/next.png")).scaled(40, 40, Qt.KeepAspectRatio))
+        self.next_logo.setAlignment(Qt.AlignCenter)
+        self.exit_logo.setPixmap(QtGui.QPixmap(getPath("Img/exit.png")).scaled(40, 40, Qt.KeepAspectRatio))
+        self.exit_logo.setAlignment(Qt.AlignCenter)
+        self.setFocusPolicy(Qt.StrongFocus)
+
+    def keyPressEvent(self, event: QtGui.QKeyEvent):
+        super().keyPressEvent(event)
+        print(event.text())
 
     def SetSingaltoSlots(self):
         self.number_slider.valueChanged.connect(self.show_number)
@@ -435,6 +524,7 @@ class timer_designer_mainwindow(QMainWindow, timer.Ui_MainWindow):
         self.output_button.clicked.connect(self.export_data)
         self.input_button.clicked.connect(self.import_data)
         self.start_button.clicked.connect(self.Start_time)
+        self.timetable_list.droped.connect(self.list_refresh)
 
     def Close_time(self):
         self.tw.close()
@@ -927,11 +1017,18 @@ class timer_designer_mainwindow(QMainWindow, timer.Ui_MainWindow):
         self.value_map["cons_debate"] = self.cons_debate_edit.text()
         self.value_map["cons_name"]= self.cons_name_edit.text()
         self.value_map["cons_players"] = []
+        self.value_map["right_stop"] = self.right_stop_checkBox.isChecked()
+        self.value_map["wheel_adjust"] = self.wheel_adjust_checkBox.isChecked()
+        self.value_map["use_keyboard"] = self.use_keyboard_checkBox.isChecked()
         for player_index in range(self.cons_players_list.count()):
             self.value_map["cons_players"].append(
                 self.cons_players_list.itemWidget(self.cons_players_list.item(player_index)).findChild(QLineEdit,
                                                                                                        "player_name_edit").text())
         self.timetable = []
+        self.timetable.append({
+                    "item_type": -1,
+                    "name": "准备阶段"
+        })
         for index in range(self.timetable_list.count()):
             item_type = self.timetable_list.itemWidget(self.timetable_list.item(index)).findChild(QComboBox,
                                                                                                   "type_combox").currentIndex()
@@ -987,11 +1084,23 @@ class timer_designer_mainwindow(QMainWindow, timer.Ui_MainWindow):
                 }
             self.timetable.append(item_map)
 
+        self.timetable.append({
+                    "item_type": -1,
+                    "name": "观众提问环节"
+        })
+
+        self.timetable.append({
+                    "item_type": -1,
+                    "name": "评委提问环节"
+        })
+
 
 def run():
     app = QApplication(sys.argv)
     MainWindow = timer_designer_mainwindow()
-    MainWindow.setWindowTitle("计时器设计器")
+    icon = QIcon("Img/logo.png")
+    MainWindow.setWindowIcon(icon)
+    MainWindow.setWindowTitle("紫丁香辩论社_计时器")
     MainWindow.show()
     sys.exit(app.exec_())
 
